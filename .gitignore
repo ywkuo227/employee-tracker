@@ -1,3 +1,6 @@
+.ds_store
+query.sql
+
 # Logs
 logs
 *.log

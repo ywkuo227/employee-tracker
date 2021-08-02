@@ -72,8 +72,8 @@ const addADept = async () => {
 
 const addARole = async () => {
     let strDeptRes = [], listDeptName = [];
-    
-    query(`SELECT * FROM department`)
+
+    await query(`SELECT * FROM department`)
         .then((response) => {
             strDeptRes = JSON.parse(JSON.stringify(response));
             for (var i = 0; i < strDeptRes.length; i++) {
@@ -100,8 +100,8 @@ const addARole = async () => {
     ]);
 
     const sql = `INSERT INTO role (title, salary, dept_id) VALUES (?, ?, ?)`;
-    const idxRoleDept = strDeptRes[strDeptRes.findIndex(ary => ary.name === roleUserRes.roleDept)].id;
-    const params = [roleUserRes.roleName, roleUserRes.roleSalary, idxRoleDept];
+    const idRoleDept = strDeptRes[strDeptRes.findIndex(ary => ary.name === roleUserRes.roleDept)].id;
+    const params = [roleUserRes.roleName, roleUserRes.roleSalary, idRoleDept];
 
     query(sql, params)
         .then((results) => {
@@ -116,7 +116,7 @@ const addARole = async () => {
 const addAnEmployee = async () => {
     let strRoleRes = [], listRoleTitle = [], strMgrRes = [], listMgrName = [];
 
-    query(`SELECT r.id, r.title FROM role r`)
+    await query(`SELECT r.id, r.title FROM role r`)
         .then((response) => {
             strRoleRes = JSON.parse(JSON.stringify(response));
             for (var i = 0; i < strRoleRes.length; i++) {
@@ -125,7 +125,7 @@ const addAnEmployee = async () => {
         })
         .catch((err) => console.error(err));
 
-    query(`SELECT e.id, CONCAT(e.first_name, " " , e.last_name) AS name FROM employee e`)
+    await query(`SELECT e.id, CONCAT(e.first_name, " " , e.last_name) AS name FROM employee e`)
         .then((response) => {
             strMgrRes = JSON.parse(JSON.stringify(response));
             strMgrRes.push({ id: null, name: 'None' });
@@ -158,9 +158,9 @@ const addAnEmployee = async () => {
     ]);
 
     const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)`;
-    const idxEmpRole = strRoleRes[strRoleRes.findIndex(ary => ary.title === empUserRes.empRole)].id;
-    const idxEmpMgr = strMgrRes[strMgrRes.findIndex(ary => ary.name === empUserRes.empMgr)].id;
-    const params = [empUserRes.empFirstName, empUserRes.empLastName, idxEmpRole, idxEmpMgr];
+    const idEmpRole = strRoleRes[strRoleRes.findIndex(ary => ary.title === empUserRes.empRole)].id;
+    const idEmpMgr = strMgrRes[strMgrRes.findIndex(ary => ary.name === empUserRes.empMgr)].id;
+    const params = [empUserRes.empFirstName, empUserRes.empLastName, idEmpRole, idEmpMgr];
 
     query(sql, params)
         .then((results) => {
@@ -170,22 +170,21 @@ const addAnEmployee = async () => {
         .catch((err) => {
             console.error(err);
         })
-}
+};
 
 const updateEmployeeRole = async () => {
     let strEmpRes = [], listEmpName = [], strRoleRes = [], listRoleTitle = [];
 
-    query(`SELECT e.id, CONCAT(e.first_name, " " , e.last_name) AS name FROM employee e`)
+    await query(`SELECT e.id, CONCAT(e.first_name, " " , e.last_name) AS name FROM employee e`)
         .then((response) => {
-            strMgrRes = JSON.parse(JSON.stringify(response));
-            strMgrRes.push({ id: null, name: 'None' });
-            for (var i = 0; i < strMgrRes.length; i++) {
-                listMgrName.push(strMgrRes[i].name);
+            strEmpRes = JSON.parse(JSON.stringify(response));
+            for (var i = 0; i < strEmpRes.length; i++) {
+                listEmpName.push(strEmpRes[i].name);
             };
         })
         .catch((err) => console.error(err));
 
-    query(`SELECT r.id, r.title FROM role r`)
+    await query(`SELECT r.id, r.title FROM role r`)
         .then((response) => {
             strRoleRes = JSON.parse(JSON.stringify(response));
             for (var i = 0; i < strRoleRes.length; i++) {
@@ -194,36 +193,28 @@ const updateEmployeeRole = async () => {
         })
         .catch((err) => console.error(err));
 
-    const empUserRes = await inquirer.prompt([
+    const updEmpRoleUserRes = await inquirer.prompt([
         {
-            type: "input",
-            message: "What is the employee's first name?",
-            name: "empFirstName"
-        }, {
-            type: "input",
-            message: "What is the employee's last name?",
-            name: "empLastName"
+            type: "list",
+            message: "Which employee's role do you want to update?",
+            name: "empName",
+            choices: listEmpName
         }, {
             type: "list",
-            message: "What is the employee's role?",
-            name: "empRole",
+            message: "Which role do you want to assign to the selected employee?",
+            name: "empUpdatedRole",
             choices: listRoleTitle
-        }, {
-            type: "list",
-            message: "Who is the employee's manager?",
-            name: "empMgr",
-            choices: listMgrName
         }
     ]);
 
-    const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)`;
-    const idxEmpRole = strRoleRes[strRoleRes.findIndex(ary => ary.title === empUserRes.empRole)].id;
-    const idxEmpMgr = strMgrRes[strMgrRes.findIndex(ary => ary.name === empUserRes.empMgr)].id;
-    const params = [empUserRes.empFirstName, empUserRes.empLastName, idxEmpRole, idxEmpMgr];
+    const sql = `UPDATE employee SET role_id = ? WHERE id = ?`;
+    const idEmpName = strEmpRes[strEmpRes.findIndex(ary => ary.name === updEmpRoleUserRes.empName)].id;
+    const idRoleTitle = strRoleRes[strRoleRes.findIndex(ary => ary.title === updEmpRoleUserRes.empUpdatedRole)].id;
+    const params = [idRoleTitle, idEmpName];
 
     query(sql, params)
         .then((results) => {
-            console.log(`Added ${empUserRes.empFirstName + " " + empUserRes.empLastName} to the database.`)
+            console.log(`Updated ${updEmpRoleUserRes.empName}'s role in the database.`)
             return whatToDo();
         })
         .catch((err) => {
