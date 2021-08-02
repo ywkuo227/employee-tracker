@@ -15,23 +15,6 @@ const db = mysql.createConnection(
 
 const query = util.promisify(db.query).bind(db);
 
-const appCapabilitySet = [
-    {
-        type: "list",
-        message: "What would you like to do?",
-        name: "selectedOperation",
-        choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update employee role", "Quit"]
-    }
-];
-
-const addDeptQueSet = [
-    {
-        type: "input",
-        message: "What is the name of the department?",
-        name: "deptName"
-    }
-]
-
 const viewAllDepartments = () => {
     query(`SELECT * FROM department`)
         .then((results) => {
@@ -66,7 +49,14 @@ const viewAllEmployees = () => {
 };
 
 const addADept = async () => {
-    const deptUserRes = await inquirer.prompt(addDeptQueSet);
+    const deptUserRes = await inquirer.prompt([
+        {
+            type: "input",
+            message: "What is the name of the department?",
+            name: "deptName"
+        }
+    ]);
+
     const sql = `INSERT INTO department (name) VALUES (?)`;
     const params = deptUserRes.deptName;
 
@@ -81,15 +71,16 @@ const addADept = async () => {
 }
 
 const addARole = async () => {
-    var listDeptName = [];
-    query(`SELECT d.name FROM department d;`)
-    .then((response) => {
-        const strResponse = JSON.parse(JSON.stringify(response));
-        for (var i = 0; i < strResponse.length; i++) {
-            listDeptName.push(strResponse[i].name);
-        };
-    })
-    .catch((err) => console.error(err));
+    let strDeptRes = [], listDeptName = [];
+    
+    query(`SELECT * FROM department`)
+        .then((response) => {
+            strDeptRes = JSON.parse(JSON.stringify(response));
+            for (var i = 0; i < strDeptRes.length; i++) {
+                listDeptName.push(strDeptRes[i].name);
+            };
+        })
+        .catch((err) => console.error(err));
 
     const roleUserRes = await inquirer.prompt([
         {
@@ -107,8 +98,10 @@ const addARole = async () => {
             choices: listDeptName
         }
     ]);
+
     const sql = `INSERT INTO role (title, salary, dept_id) VALUES (?, ?, ?)`;
-    const params = [roleUserRes.roleName, roleUserRes.roleSalary, roleUserRes.roleDept];
+    const idxRoleDept = strDeptRes[strDeptRes.findIndex(ary => ary.name === roleUserRes.roleDept)].id;
+    const params = [roleUserRes.roleName, roleUserRes.roleSalary, idxRoleDept];
 
     query(sql, params)
         .then((results) => {
@@ -121,13 +114,116 @@ const addARole = async () => {
 }
 
 const addAnEmployee = async () => {
-    const deptUserRes = await inquirer.prompt(addDeptQueSet);
-    const sql = `INSERT INTO department (name) VALUES (?)`;
-    const params = deptUserRes.deptName;
+    let strRoleRes = [], listRoleTitle = [], strMgrRes = [], listMgrName = [];
+
+    query(`SELECT r.id, r.title FROM role r`)
+        .then((response) => {
+            strRoleRes = JSON.parse(JSON.stringify(response));
+            for (var i = 0; i < strRoleRes.length; i++) {
+                listRoleTitle.push(strRoleRes[i].title);
+            };
+        })
+        .catch((err) => console.error(err));
+
+    query(`SELECT e.id, CONCAT(e.first_name, " " , e.last_name) AS name FROM employee e`)
+        .then((response) => {
+            strMgrRes = JSON.parse(JSON.stringify(response));
+            strMgrRes.push({ id: null, name: 'None' });
+            for (var i = 0; i < strMgrRes.length; i++) {
+                listMgrName.push(strMgrRes[i].name);
+            };
+        })
+        .catch((err) => console.error(err));
+
+    const empUserRes = await inquirer.prompt([
+        {
+            type: "input",
+            message: "What is the employee's first name?",
+            name: "empFirstName"
+        }, {
+            type: "input",
+            message: "What is the employee's last name?",
+            name: "empLastName"
+        }, {
+            type: "list",
+            message: "What is the employee's role?",
+            name: "empRole",
+            choices: listRoleTitle
+        }, {
+            type: "list",
+            message: "Who is the employee's manager?",
+            name: "empMgr",
+            choices: listMgrName
+        }
+    ]);
+
+    const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)`;
+    const idxEmpRole = strRoleRes[strRoleRes.findIndex(ary => ary.title === empUserRes.empRole)].id;
+    const idxEmpMgr = strMgrRes[strMgrRes.findIndex(ary => ary.name === empUserRes.empMgr)].id;
+    const params = [empUserRes.empFirstName, empUserRes.empLastName, idxEmpRole, idxEmpMgr];
 
     query(sql, params)
         .then((results) => {
-            console.log(`Added ${params} to the database.`)
+            console.log(`Added ${empUserRes.empFirstName + " " + empUserRes.empLastName} to the database.`)
+            return whatToDo();
+        })
+        .catch((err) => {
+            console.error(err);
+        })
+}
+
+const updateEmployeeRole = async () => {
+    let strEmpRes = [], listEmpName = [], strRoleRes = [], listRoleTitle = [];
+
+    query(`SELECT e.id, CONCAT(e.first_name, " " , e.last_name) AS name FROM employee e`)
+        .then((response) => {
+            strMgrRes = JSON.parse(JSON.stringify(response));
+            strMgrRes.push({ id: null, name: 'None' });
+            for (var i = 0; i < strMgrRes.length; i++) {
+                listMgrName.push(strMgrRes[i].name);
+            };
+        })
+        .catch((err) => console.error(err));
+
+    query(`SELECT r.id, r.title FROM role r`)
+        .then((response) => {
+            strRoleRes = JSON.parse(JSON.stringify(response));
+            for (var i = 0; i < strRoleRes.length; i++) {
+                listRoleTitle.push(strRoleRes[i].title);
+            };
+        })
+        .catch((err) => console.error(err));
+
+    const empUserRes = await inquirer.prompt([
+        {
+            type: "input",
+            message: "What is the employee's first name?",
+            name: "empFirstName"
+        }, {
+            type: "input",
+            message: "What is the employee's last name?",
+            name: "empLastName"
+        }, {
+            type: "list",
+            message: "What is the employee's role?",
+            name: "empRole",
+            choices: listRoleTitle
+        }, {
+            type: "list",
+            message: "Who is the employee's manager?",
+            name: "empMgr",
+            choices: listMgrName
+        }
+    ]);
+
+    const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)`;
+    const idxEmpRole = strRoleRes[strRoleRes.findIndex(ary => ary.title === empUserRes.empRole)].id;
+    const idxEmpMgr = strMgrRes[strMgrRes.findIndex(ary => ary.name === empUserRes.empMgr)].id;
+    const params = [empUserRes.empFirstName, empUserRes.empLastName, idxEmpRole, idxEmpMgr];
+
+    query(sql, params)
+        .then((results) => {
+            console.log(`Added ${empUserRes.empFirstName + " " + empUserRes.empLastName} to the database.`)
             return whatToDo();
         })
         .catch((err) => {
@@ -136,7 +232,14 @@ const addAnEmployee = async () => {
 }
 
 const whatToDo = async () => {
-    const response = await inquirer.prompt(appCapabilitySet);
+    const response = await inquirer.prompt([
+        {
+            type: "list",
+            message: "What would you like to do?",
+            name: "selectedOperation",
+            choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update employee role", "Quit"]
+        }
+    ]);
     switch (response.selectedOperation) {
         case "View all departments":
             return viewAllDepartments();
@@ -153,7 +256,8 @@ const whatToDo = async () => {
         case "Update employee role":
             return updateEmployeeRole();
         default:
-            return;
+            console.log(`\nGoodbye!\n`);
+            return process.exit(0);
     }
 };
 
