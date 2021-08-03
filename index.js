@@ -1,20 +1,25 @@
+// Declare all application dependencies.
 const util = require("util");
 const inquirer = require("inquirer");
 const mysql = require("mysql2");
 const cTable = require("console.table");
+require('dotenv').config();
 
+// Create database connection using MySQL2 and DotENV.
 const db = mysql.createConnection(
     {
-        host: "localhost",
-        user: "root",
-        password: "password",
-        database: "company_db"
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME
     },
     console.log(`\nConnected to employee database, please proceed.\n`)
 );
 
+// Utilize util.promisify to turn DB queries into promise.
 const query = util.promisify(db.query).bind(db);
 
+// Query to view all departments.
 const viewAllDepartments = () => {
     query(`SELECT * FROM department`)
         .then((results) => {
@@ -26,6 +31,7 @@ const viewAllDepartments = () => {
         })
 };
 
+// Query to view all roles.
 const viewAllRoles = () => {
     query(`SELECT r.id, r.title, d.name AS department, r.salary FROM role r JOIN department d ON r.dept_id = d.id`)
         .then((results) => {
@@ -37,6 +43,7 @@ const viewAllRoles = () => {
         })
 };
 
+// Query to view all employees.
 const viewAllEmployees = () => {
     query(`SELECT e.id, e.first_name, e.last_name, r.title, r.department, r.salary, m.employee_name AS manager FROM employee e LEFT OUTER JOIN (SELECT r.id, r.title, d.name AS department, r.salary FROM role r JOIN department d ON r.dept_id = d.id) r ON e.role_id = r.id LEFT OUTER JOIN (SELECT id, CONCAT(first_name, " ",last_name) as employee_name FROM employee) m ON e.manager_id = m.id`)
         .then((results) => {
@@ -48,6 +55,7 @@ const viewAllEmployees = () => {
         })
 };
 
+// Query to add a department to the Department table.
 const addADept = async () => {
     const deptUserRes = await inquirer.prompt([
         {
@@ -70,6 +78,9 @@ const addADept = async () => {
         })
 }
 
+// Query to add a role to the Role table.
+// Function will pull available department from Department table and display in department options.
+// The new role will be added to Role table with appropriate Department ID.
 const addARole = async () => {
     let strDeptRes = [], listDeptName = [];
 
@@ -113,6 +124,10 @@ const addARole = async () => {
         })
 }
 
+// Query to add an employee to the Employee table.
+// Function will pull available Role Title from Role table and display in role options.
+// Function will list out available employee names to choose for manager options.
+// The new role will be added to Employee table with appropriate Role ID and Manager ID.
 const addAnEmployee = async () => {
     let strRoleRes = [], listRoleTitle = [], strMgrRes = [], listMgrName = [];
 
@@ -172,6 +187,9 @@ const addAnEmployee = async () => {
         })
 };
 
+// Query to update role of existing employee.
+// List of employees and available roles will be pulled from Employee table and Role table.
+// Updated Role ID will be added back to Employee table based on Employee ID.
 const updateEmployeeRole = async () => {
     let strEmpRes = [], listEmpName = [], strRoleRes = [], listRoleTitle = [];
 
@@ -222,6 +240,7 @@ const updateEmployeeRole = async () => {
         })
 }
 
+// Display available functions for user to choose from.
 const whatToDo = async () => {
     const response = await inquirer.prompt([
         {
@@ -252,4 +271,5 @@ const whatToDo = async () => {
     }
 };
 
+// Application initialization.
 whatToDo();
